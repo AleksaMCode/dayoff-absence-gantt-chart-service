@@ -5,7 +5,7 @@ import requests
 from dotenv import load_dotenv
 
 from i18n.loader import i18n
-from logger import get_logger
+from logger.utils import get_logger
 
 load_dotenv()
 logger = get_logger(__name__)
