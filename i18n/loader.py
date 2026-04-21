@@ -13,7 +13,10 @@ class I18n:
         self.lang = default_lang
 
     def load(self, lang):
-        path = os.path.join(self.locale_dir, f"{lang}.json")
+        abs_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), self.locale_dir
+        )
+        path = os.path.join(abs_path, f"{lang}.json")
         with open(path, "r", encoding="utf-8") as f:
             self.translations[lang] = json.load(f)
 
