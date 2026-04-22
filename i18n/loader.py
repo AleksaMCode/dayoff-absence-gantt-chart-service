@@ -14,7 +14,7 @@ class I18n:
 
     def load(self, lang):
         abs_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), self.locale_dir
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), self.locale_dir
         )
         path = os.path.join(abs_path, f"{lang}.json")
         with open(path, "r", encoding="utf-8") as f:
