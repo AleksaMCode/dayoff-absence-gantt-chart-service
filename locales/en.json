@@ -1,6 +1,7 @@
 {
   "msg": {
     "hello": "Good morning.",
-    "start": "These are the absences for this week."
+    "absences": "These are the absences for this week.",
+    "no-absences": "There are no absences this week."
   }
 }

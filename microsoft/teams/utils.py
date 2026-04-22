@@ -35,7 +35,10 @@ def send_webhook_message(message: str):
         logger.info("Slack webhook message sent to Teams.")
 
 
-def publish_to_channel():
+def publish_to_channel(no_absences=False):
     logger.info("Publishing to teams channel")
-    msg = f"{i18n.t("msg.hello")} {i18n.t("msg.start")}"
+    if not no_absences:
+        msg = f"{i18n.t("msg.hello")} {i18n.t("msg.absences")}"
+    else:
+        msg = f"{i18n.t("msg.hello")} {i18n.t("no-absences")}"
     send_webhook_message(msg)

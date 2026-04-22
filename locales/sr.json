@@ -1,6 +1,7 @@
 {
   "msg": {
     "hello": "Dobro jutro.",
-    "start": "Ovu su izostanci za ovu sedmicu."
+    "absences": "Ovu su izostanci za ovu sedmicu.",
+    "no-absences": "Ove sedmice nema izostanaka."
   }
 }
