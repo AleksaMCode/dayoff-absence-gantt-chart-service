@@ -1,6 +1,9 @@
 import json
+import os
 import unittest
 from unittest.mock import Mock, patch
+
+os.environ["LANG"] = "en"
 
 from microsoft.teams.utils import publish_to_channel, send_webhook_message
 
