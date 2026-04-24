@@ -14,7 +14,9 @@ logger = get_logger(__name__)
 
 # Incoming Webhook is to be retired in Teams - https://techcommunity.microsoft.com/discussions/teamsdeveloper/simple-workflow-to-replace-teams-incoming-webhooks/4225270
 # TODO: We'll cross that bridge once needed.
-# Probably need to switch eventually to https://learn.microsoft.com/en-us/microsoftteams/platform/bots/how-to/bots-filesv4?tabs=csharp1%2Ccsharp
+# Probably need to switch eventually to:
+#   - https://learn.microsoft.com/en-us/microsoftteams/platform/bots/how-to/bots-filesv4?tabs=csharp1%2Ccsharp
+#   - https://learn.microsoft.com/en-us/graph/api/chatmessage-post?view=graph-rest-beta&preserve-view=true&tabs=python#example-4-file-attachments
 def send_webhook_message(message: str, image_url: Optional[str] = None):
     """
     Sends a message to a Slack like app (Teams) via webhook.
