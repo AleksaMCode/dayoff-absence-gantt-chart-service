@@ -18,7 +18,7 @@ def upload_image(image_content: bytes, file_name: str) -> str:
         client_id = os.getenv("SHAREPOINT_CLIENT_ID")
         client_secret = os.getenv("SHAREPOINT_CLIENT_SECRET")
         site_url = os.getenv("SHAREPOINT_SITE_URL")
-        target_directory = f"Shared Documents/{os.getenv("SHAREPOINT_DIRECTORY")}"
+        target_directory = f"Shared Documents/{os.getenv('SHAREPOINT_DIRECTORY')}"
         tenant_id = os.getenv("SHAREPOINT_TENANT_ID")
 
         cert_fingerprint = os.getenv("SHAREPOINT_CERT_FINGERPRINT")
