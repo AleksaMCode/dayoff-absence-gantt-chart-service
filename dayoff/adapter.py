@@ -8,7 +8,7 @@ import requests
 from dotenv import load_dotenv
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_exponential
 
-from dayoff_adapter.dayoff_endpoints import Endpoints
+from dayoff.endpoints import Endpoints
 from logger.utils import get_logger
 
 load_dotenv()

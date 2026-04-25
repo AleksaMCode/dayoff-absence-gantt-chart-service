@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from unittest.mock import Mock, patch
 
-from dayoff_adapter.dayoff_adapter import DayOffAdapter
+from dayoff.adapter import DayOffAdapter
 
 
 class TestDayOffAdapter(unittest.TestCase):
