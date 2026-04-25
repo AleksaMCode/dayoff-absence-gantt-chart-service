@@ -148,7 +148,7 @@ class TestTeamsUtils(unittest.TestCase):
     ) -> None:
         translations = {
             "msg.hello": "Hello",
-            "no-absences": "No absences this week",
+            "msg.no-absences": "No absences this week",
         }
         mock_i18n_t.side_effect = lambda key: translations[key]
 
