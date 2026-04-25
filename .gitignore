@@ -3,6 +3,9 @@
 
 DayOff.json
 
+# Certificates and keys
+*.pem
+
 # Python
 
 # Byte-compiled / optimized / DLL files
