@@ -43,7 +43,7 @@ def publish_to_channel(no_absences: bool = False, image_url: Optional[str] = Non
     if not no_absences:
         msg = f"{i18n.t('msg.hello')} {i18n.t('msg.absences')}"
     else:
-        msg = f"{i18n.t('msg.hello')} {i18n.t('no-absences')}"
+        msg = f"{i18n.t('msg.hello')} {i18n.t('msg.no-absences')}"
 
     send_webhook_message(msg, image_url=image_url)
 
