@@ -13,9 +13,9 @@
 
 <p align="center">
 <img
-src="./resources/arch_diagram.svg?raw=true"
+src="./resources/doagc.svg?raw=true"
 alt="Architecture overview"
-width="100%"
+width="70%"
 class="center"
 />
 <p align="center">
