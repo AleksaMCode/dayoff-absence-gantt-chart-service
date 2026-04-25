@@ -6,6 +6,9 @@ DayOff.json
 # Certificates and keys
 *.pem
 
+# excalidraw file
+*.excalidraw
+
 # Python
 
 # Byte-compiled / optimized / DLL files
