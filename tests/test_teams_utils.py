@@ -88,18 +88,20 @@ class TestTeamsUtils(unittest.TestCase):
 
     @patch("microsoft.teams.utils.requests.post")
     @patch("microsoft.teams.utils.os.getenv")
+    @patch("microsoft.teams.utils.logger.error")
     def test_send_webhook_message_raises_on_http_error(
         self,
+        mock_logger_error: Mock,
         mock_getenv: Mock,
         mock_post: Mock,
     ) -> None:
         mock_getenv.return_value = "https://example.test/webhook"
         mock_post.return_value = Mock(status_code=500, text="test")
 
-        with self.assertRaisesRegex(
-            ValueError, "Request to Teams returned an error 500"
-        ):
+        with self.assertRaises(ValueError) as context:
             send_webhook_message("Failure path")
+        self.assertIn("Request to Teams returned an error 500", str(context.exception))
+        mock_logger_error.assert_called_once()
 
     @patch("microsoft.teams.utils.send_webhook_message")
     @patch("microsoft.teams.utils.i18n.t")
