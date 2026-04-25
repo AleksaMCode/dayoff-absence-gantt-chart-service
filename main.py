@@ -4,7 +4,7 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 
-from dayoff_adapter.dayoff_adapter import DayOffAdapter
+from dayoff.adapter import DayOffAdapter
 from gantt.utils import generate_absence_gantt
 from logger.utils import get_logger
 from microsoft.sharepoint.utils import upload_image
