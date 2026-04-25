@@ -177,11 +177,7 @@ class DayOffAdapter:
         if resolved_team_id is not None:
             filter_payload["TeamIds"] = [resolved_team_id]
         logger.info(
-            "Fetching absences for team '%s' (%s) in %s-%s.",
-            team,
-            resolved_team_id,
-            year,
-            month,
+            f"Fetching absences for team '{team}' ({resolved_team_id}) in {year}-{month}."
         )
         response = self._get(
             Endpoints.EVENTS_BY_MONTH,
