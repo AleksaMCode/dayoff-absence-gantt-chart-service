@@ -5,3 +5,4 @@ fastapi
 uvicorn
 matplotlib
 pydantic
+office365-rest-python-client
