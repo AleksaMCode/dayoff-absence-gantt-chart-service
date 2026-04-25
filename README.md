@@ -53,7 +53,7 @@ class="center"
 <img
 src="./resources/teams_msg_example.png?raw=true"
 alt="Example Teams message"
-width="70%"
+width="60%"
 class="center"
 />
 <p align="center">
@@ -97,26 +97,12 @@ Example response:
 }
 ```
 
-## Local Setup
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-Run service:
-
-```bash
-python -m main
-```
-
 ## SharePoint Authentication Notes
 
 This project supports two SharePoint auth modes, selected by your `.env` values:
 
 1. **Client secret auth**  
-   Uses `SHAREPOINT_CLIENT_ID` + `SHAREPOINT_CLIENT_SECRET`.
+   Uses `SHAREPOINT_CLIENT_ID` and `SHAREPOINT_CLIENT_SECRET`.
 
 2. **Certificate auth**  
    Uses `SHAREPOINT_TENANT_ID`, `SHAREPOINT_CERT_FINGERPRINT`, and `SHAREPOINT_PRIVATE_KEY`.
@@ -134,7 +120,7 @@ bash scripts/create_certificate.sh
 
 ## Deployment and Scheduling
 
-This service is ideal for scheduled automation after deployment (VM/container/app service).
+This service is ideal for scheduled automation after deployment.
 
 Common usage pattern:
 
