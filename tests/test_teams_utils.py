@@ -31,6 +31,28 @@ class TestTeamsUtils(unittest.TestCase):
         )
         mock_logger_info.assert_called_once_with("Slack webhook message sent to Teams.")
 
+    @patch("microsoft.teams.utils.logger.info")
+    @patch("microsoft.teams.utils.requests.post")
+    @patch("microsoft.teams.utils.os.getenv")
+    def test_send_webhook_message_accepts_202(
+        self,
+        mock_getenv: Mock,
+        mock_post: Mock,
+        mock_logger_info: Mock,
+    ) -> None:
+        mock_getenv.return_value = "https://example.test/webhook"
+        mock_post.return_value = Mock(status_code=202, text="accepted")
+
+        send_webhook_message("Accepted by workflow")
+
+        mock_post.assert_called_once_with(
+            "https://example.test/webhook",
+            data=json.dumps({"text": "Accepted by workflow"}),
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+        mock_logger_info.assert_called_once_with("Slack webhook message sent to Teams.")
+
     @patch("microsoft.teams.utils.requests.post")
     @patch("microsoft.teams.utils.os.getenv")
     def test_send_webhook_message_uses_adaptive_card_when_image_url(
@@ -66,7 +88,12 @@ class TestTeamsUtils(unittest.TestCase):
                                 "type": "Image",
                                 "url": "https://contoso.sharepoint.com/file.png",
                                 "size": "Stretch",
+                                "selectAction": {
+                                    "type": "Action.OpenUrl",
+                                    "url": "https://contoso.sharepoint.com/file.png",
+                                },
                             },
+                            {"type": "TextBlock", "wrap": True},
                         ],
                         "actions": [
                             {

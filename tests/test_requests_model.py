@@ -2,7 +2,7 @@ import unittest
 
 from pydantic import ValidationError
 
-from models.requests import GetAbsencesRequest
+from models.requests import GetAbsencesRequest, GetScrapedAbsencesRequest
 
 
 class TestGetAbsencesRequestModel(unittest.TestCase):
@@ -49,6 +49,22 @@ class TestGetAbsencesRequestModel(unittest.TestCase):
     def test_rejects_invalid_days_ahead(self) -> None:
         with self.assertRaises(ValidationError):
             GetAbsencesRequest(days_ahead=31)
+
+
+class TestGetScrapedAbsencesRequestModel(unittest.TestCase):
+    def test_requires_full_names(self) -> None:
+        payload = GetScrapedAbsencesRequest(full_names=["John Wick"], days_ahead=5)
+        self.assertEqual(payload.full_names, ["John Wick"])
+
+    def test_rejects_empty_full_name_values(self) -> None:
+        with self.assertRaisesRegex(
+            ValidationError, "full_names must contain non-empty values."
+        ):
+            GetScrapedAbsencesRequest(full_names=["", "John Wick"])
+
+    def test_rejects_invalid_days_ahead(self) -> None:
+        with self.assertRaises(ValidationError):
+            GetScrapedAbsencesRequest(full_names=["John Wick"], days_ahead=31)
 
 
 if __name__ == "__main__":

@@ -63,6 +63,17 @@ class="center"
 
 ## API
 
+### Fetch Modes
+
+The service supports two mutually-exclusive runtime modes:
+
+- `DAYOFF_FETCH_MODE=api`  
+  Loads the API-key based endpoint: `POST /get_absences`.
+- `DAYOFF_FETCH_MODE=scraper`  
+  Loads only the scraping endpoint: `POST /get_absences_scraped`.
+
+Only one mode is active at runtime, so the other endpoint is not registered.
+
 > [!NOTE]
 >
 > In practice, the `email_usernames` approach is recommended when reliability is the priority. In limited testing, team-based queries were occasionally behind the latest DayOff team updates. Username filtering is more expensive (it performs one leave-request call per matched user), but it tends to produce more consistent results.
@@ -97,6 +108,38 @@ Example response:
 }
 ```
 
+### Scraper Mode Example
+
+The scraper mode authenticates against the Day Off web app and filters by strict full-name matches (exact `Firstname Lastname` string).
+
+Request:
+
+```json
+{
+  "full_names": ["John Wick", "John Constantine"],
+  "team_name": "Sprint Team",
+  "days_ahead": 5
+}
+```
+
+Required scraper env values:
+
+- `DAYOFF_SCRAPER_EMAIL`
+- `DAYOFF_SCRAPER_PASSWORD`
+- `DAYOFF_SCRAPER_LOGIN_URL` (defaults to `https://tracker.day-off.app/auth/login`)
+- `DAYOFF_SCRAPER_CALENDAR_URL` (defaults to `https://tracker.day-off.app/dashboard`)
+
+> [!IMPORTANT]
+>
+> Scraper mode depends on Playwright browser binaries. After installing Python dependencies, run:
+>
+> ```bash
+> playwright install chromium
+> ```
+
+If you run the service in Docker (see below), Playwright browsers are installed during image build and you do not need a local Playwright install.
+
+
 ## SharePoint Authentication Notes
 
 This project supports two SharePoint auth modes, selected by your `.env` values:
@@ -118,6 +161,32 @@ bash scripts/create_certificate.sh
 > - If you are using SharePoint Online and encounter a `401 Unauthorized`, your environment may require **certificate-based authentication** even when client secrets are configured. 
 > - `SHAREPOINT_DIRECTORY` must be a valid server-relative folder path (for example under `Shared Documents`), not just a display folder name.
 
+## Docker
+
+Run the whole service (including Playwright + Chromium for scraper mode) in Docker.
+
+1. Copy `.env.template` to `.env` and set values (especially `DAYOFF_FETCH_MODE`, and scraper credentials if using scraper mode).
+2. Build and start:
+
+```bash
+docker compose up --build
+```
+
+The API will be exposed at `http://localhost:8000`.
+
+Mode-specific endpoints inside container:
+
+- `DAYOFF_FETCH_MODE=api` -> `POST /get_absences`
+- `DAYOFF_FETCH_MODE=scraper` -> `POST /get_absences_scraped`
+
+Quick test (scraper mode):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/get_absences_scraped" \
+  -H "Content-Type: application/json" \
+  -d '{"full_names":["John Wick"],"days_ahead":5}'
+```
+
 ## Deployment and Scheduling
 
 This service is ideal for scheduled automation after deployment.
@@ -125,7 +194,7 @@ This service is ideal for scheduled automation after deployment.
 Common usage pattern:
 
 - Deploy the API internally.
-- Trigger `POST /get_absences` from a scheduler every Monday morning.
+- Trigger `POST` from a scheduler every Monday morning.
 - Teams receives weekly absence visibility before standups, planning, or sprint kickoff.
 
 Example Linux cron entry (runs every Monday at 09:00):
