@@ -1,2 +1,2 @@
-coverage
-httpx
+coverage==7.13.5
+httpx==0.28.1
