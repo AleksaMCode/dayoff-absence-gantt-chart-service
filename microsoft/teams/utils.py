@@ -70,7 +70,19 @@ def _build_webhook_payload(
                             "weight": "Bolder",
                             "wrap": True,
                         },
-                        {"type": "Image", "url": image_url, "size": "Stretch"},
+                        {
+                            "type": "Image",
+                            "url": image_url,
+                            "size": "Stretch",
+                            "selectAction": {
+                                "type": "Action.OpenUrl",
+                                "url": image_url,
+                            },
+                        },
+                        {
+                            "type": "TextBlock",
+                            "wrap": True,
+                        },
                     ],
                     "actions": [
                         {
