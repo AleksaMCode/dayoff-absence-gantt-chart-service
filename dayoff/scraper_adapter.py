@@ -147,8 +147,6 @@ class DayOffScraperAdapter:
                         if parsed_requests:
                             captured_requests.extend(parsed_requests)
                             break
-                    if captured_requests:
-                        break
 
             if not captured_requests:
                 captured_requests = self._extract_from_calendar_dom(page)
