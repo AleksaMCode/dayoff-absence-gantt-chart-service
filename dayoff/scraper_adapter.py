@@ -1,5 +1,5 @@
+import hashlib
 import os
-import zlib
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
 
@@ -400,11 +400,18 @@ async ({ endpoint, payload }) => {
             if employee_name not in full_names:
                 continue
 
+            scraped_employee_id = request.get("EmployeeID")
+            resolved_employee_id = (
+                int(scraped_employee_id)
+                if isinstance(scraped_employee_id, int)
+                else self._stable_employee_fallback_id(employee_name)
+            )
+            employee_key = f"{employee_name}::{resolved_employee_id}"
+
             employee_entry = employee_absence_map.setdefault(
-                employee_name,
+                employee_key,
                 {
-                    "employee_id": request.get("EmployeeID")
-                    or zlib.crc32(employee_name.encode("utf-8")),
+                    "employee_id": resolved_employee_id,
                     "name": employee_name,
                     "absence_dates": set(),
                 },
@@ -442,6 +449,11 @@ async ({ endpoint, payload }) => {
             return []
         total_days = (end - start).days + 1
         return [start + timedelta(days=offset) for offset in range(total_days)]
+
+    @staticmethod
+    def _stable_employee_fallback_id(employee_name: str) -> int:
+        digest = hashlib.sha256(employee_name.encode("utf-8")).digest()
+        return int.from_bytes(digest[:8], byteorder="big", signed=False)
 
     @staticmethod
     def _extract_request_date_range(

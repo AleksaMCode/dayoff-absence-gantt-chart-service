@@ -73,6 +73,27 @@ class TestDayOffScraperAdapter(unittest.TestCase):
         self.assertEqual(len(extracted), 1)
         self.assertEqual(extracted[0]["Name"], "John Wick")
 
+    def test_date_range_returns_inclusive_days(self) -> None:
+        result = self.adapter._date_range(date(2026, 10, 13), date(2026, 10, 15))
+        self.assertEqual(
+            [day.isoformat() for day in result],
+            ["2026-10-13", "2026-10-14", "2026-10-15"],
+        )
+
+    def test_date_range_returns_empty_when_end_before_start(self) -> None:
+        result = self.adapter._date_range(date(2026, 10, 15), date(2026, 10, 13))
+        self.assertEqual(result, [])
+
+    def test_stable_employee_fallback_id_is_deterministic(self) -> None:
+        first = self.adapter._stable_employee_fallback_id("John Wick")
+        second = self.adapter._stable_employee_fallback_id("John Wick")
+        third = self.adapter._stable_employee_fallback_id("John Constantine")
+
+        self.assertEqual(first, second)
+        self.assertNotEqual(first, third)
+        self.assertIsInstance(first, int)
+        self.assertGreaterEqual(first, 0)
+
     @patch.object(DayOffScraperAdapter, "_scrape_calendar_requests")
     def test_get_absences_for_users_window_days_ahead_zero_returns_empty_without_scrape(
         self, mock_scrape_calendar_requests: Mock
@@ -121,6 +142,44 @@ class TestDayOffScraperAdapter(unittest.TestCase):
             result["employees_absences"][0]["absence_dates"],
             ["2026-10-13", "2026-10-14", "2026-10-15"],
         )
+
+    @patch.object(DayOffScraperAdapter, "_scrape_calendar_requests")
+    def test_get_absences_for_users_window_keeps_duplicate_names_separate_by_employee_id(
+        self, mock_scrape_calendar_requests: Mock
+    ) -> None:
+        mock_scrape_calendar_requests.return_value = [
+            {
+                "EmployeeID": 101,
+                "Name": "John Smith",
+                "FromDateFormated": "2026-10-13",
+                "ToDateFormated": "2026-10-14",
+            },
+            {
+                "EmployeeID": 202,
+                "Name": "John Smith",
+                "FromDateFormated": "2026-10-14",
+                "ToDateFormated": "2026-10-15",
+            },
+        ]
+
+        result = self.adapter.get_absences_for_users_window(
+            full_names=["John Smith"],
+            start_date=date(2026, 10, 13),
+            days_ahead=3,
+        )
+
+        self.assertEqual(result["employees_count"], 2)
+        self.assertEqual(len(result["employees_absences"]), 2)
+        employee_ids = sorted(
+            [entry["employee_id"] for entry in result["employees_absences"]]
+        )
+        self.assertEqual(employee_ids, [101, 202])
+        id_to_dates = {
+            entry["employee_id"]: entry["absence_dates"]
+            for entry in result["employees_absences"]
+        }
+        self.assertEqual(id_to_dates[101], ["2026-10-13"])
+        self.assertEqual(id_to_dates[202], ["2026-10-14"])
 
     def test_scrape_calendar_requests_fallback_fetches_each_month(self) -> None:
         class FakePage:
