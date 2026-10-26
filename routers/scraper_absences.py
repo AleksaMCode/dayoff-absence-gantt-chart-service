@@ -6,14 +6,20 @@ from logger.utils import get_logger
 from microsoft.sharepoint.utils import upload_image
 from microsoft.teams.utils import publish_to_channel
 from models.requests import GetScrapedAbsencesRequest
+from models.responses import AbsenceWindowResponse, AbsenceWindowWithChartResponse
 
 router = APIRouter()
 logger = get_logger(__name__)
 scraper_adapter = DayOffScraperAdapter()
 
 
-@router.post("/get_absences_scraped")
-def get_absences_scraped(payload: GetScrapedAbsencesRequest):
+@router.post(
+    "/get_absences_scraped",
+    response_model=AbsenceWindowResponse | AbsenceWindowWithChartResponse,
+)
+def get_absences_scraped(
+    payload: GetScrapedAbsencesRequest,
+) -> AbsenceWindowResponse | AbsenceWindowWithChartResponse:
     try:
         absence_data = scraper_adapter.get_absences_for_users_window(
             full_names=payload.full_names,
@@ -24,18 +30,20 @@ def get_absences_scraped(payload: GetScrapedAbsencesRequest):
         if chart_data is None:
             logger.info(f"There are no absences for team '{absence_data['team_name']}'")
             publish_to_channel(no_absences=True)
-            return absence_data
+            return AbsenceWindowResponse.model_validate(absence_data)
 
         sharepoint_file_url = upload_image(
             image_content=chart_data["chart_bytes"],
             file_name=chart_data["chart_file_name"],
         )
         publish_to_channel(image_url=sharepoint_file_url)
-        return {
-            **absence_data,
-            "chart_file_name": chart_data["chart_file_name"],
-            "sharepoint_file_url": sharepoint_file_url,
-        }
+        return AbsenceWindowWithChartResponse.model_validate(
+            {
+                **absence_data,
+                "chart_file_name": chart_data["chart_file_name"],
+                "sharepoint_file_url": sharepoint_file_url,
+            }
+        )
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except Exception as error:
