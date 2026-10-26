@@ -81,6 +81,7 @@ class DayOffScraperAdapter:
 
         captured_requests: List[Dict[str, Any]] = []
         observed_relevant_urls: Set[str] = set()
+        retrieval_succeeded = False
         browser = None
 
         try:
@@ -93,6 +94,7 @@ class DayOffScraperAdapter:
                 page.set_default_timeout(self._timeout_ms)
 
                 def on_response(response):
+                    nonlocal retrieval_succeeded
                     try:
                         response_url = response.url
                         if self._calendar_events_endpoint not in response_url and (
@@ -106,6 +108,8 @@ class DayOffScraperAdapter:
                         return
 
                     parsed_requests = self._extract_requests_from_payload(payload)
+                    if self._payload_contains_calendar_shape(payload):
+                        retrieval_succeeded = True
                     if parsed_requests:
                         captured_requests.extend(parsed_requests)
 
@@ -160,6 +164,8 @@ class DayOffScraperAdapter:
                             payload = self._fetch_calendar_events_payload(
                                 page, request_payload
                             )
+                            if self._payload_contains_calendar_shape(payload):
+                                retrieval_succeeded = True
                             parsed_requests = self._extract_requests_from_payload(
                                 payload
                             )
@@ -168,7 +174,10 @@ class DayOffScraperAdapter:
                                 break
 
                 if not captured_requests:
-                    captured_requests = self._extract_from_calendar_dom(page)
+                    dom_records = self._extract_from_calendar_dom(page)
+                    if dom_records:
+                        retrieval_succeeded = True
+                    captured_requests = dom_records
         except PlaywrightError as error:
             raise ScraperError(
                 "Day Off scraping failed due to upstream page/login error."
@@ -180,7 +189,7 @@ class DayOffScraperAdapter:
                 except Exception:
                     pass
 
-        if not captured_requests:
+        if not captured_requests and not retrieval_succeeded:
             observed_suffix = ""
             if observed_relevant_urls:
                 preview = sorted(observed_relevant_urls)[:8]
@@ -329,6 +338,19 @@ class DayOffScraperAdapter:
             if isinstance(accepted, list):
                 return [item for item in accepted if isinstance(item, dict)]
         return []
+
+    @staticmethod
+    def _payload_contains_calendar_shape(payload: Any) -> bool:
+        if not isinstance(payload, dict):
+            return False
+        results = payload.get("Results")
+        if isinstance(results, dict) and isinstance(
+            results.get("AcceptedRequests"), list
+        ):
+            return True
+        if isinstance(payload.get("AcceptedRequests"), list):
+            return True
+        return False
 
     def _fetch_calendar_events_payload(
         self, page, request_payload: Dict[str, Any]
