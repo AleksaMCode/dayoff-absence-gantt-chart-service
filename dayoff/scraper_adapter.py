@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from dotenv import load_dotenv
 
+from dayoff.exceptions import ScraperError
 from logger.utils import get_logger
 
 load_dotenv()
@@ -158,7 +159,7 @@ class DayOffScraperAdapter:
             if observed_relevant_urls:
                 preview = sorted(observed_relevant_urls)[:8]
                 observed_suffix = f" Observed relevant response URLs: {preview}."
-            raise ValueError(
+            raise ScraperError(
                 "No calendar requests were scraped from Day Off." + observed_suffix
             )
 
@@ -198,7 +199,7 @@ class DayOffScraperAdapter:
             ],
         )
         if email_input is None:
-            raise ValueError(
+            raise ScraperError(
                 "Could not locate email field on Day Off login page. "
                 f"Current URL: {page.url}. Page title: {page.title()}."
             )
@@ -235,7 +236,7 @@ class DayOffScraperAdapter:
             ],
         )
         if password_input is None:
-            raise ValueError("Could not locate password field on Day Off login page.")
+            raise ScraperError("Could not locate password field on Day Off login page.")
         password_input.fill(self._password)
         self._click_first(
             page,
@@ -267,7 +268,7 @@ class DayOffScraperAdapter:
                 visible_text = page.locator("body").inner_text(timeout=2000)[:500]
             except Exception:
                 visible_text = ""
-            raise ValueError(
+            raise ScraperError(
                 "Day Off login failed; still on login page after sign in. "
                 f"Current URL: {page.url}. "
                 f"Visible text snippet: {visible_text!r}"
@@ -288,7 +289,7 @@ class DayOffScraperAdapter:
             if locator.count() > 0:
                 locator.click()
                 return
-        raise ValueError(f"Could not locate any clickable selector from: {selectors}")
+        raise ScraperError(f"Could not locate any clickable selector from: {selectors}")
 
     @staticmethod
     def _extract_requests_from_payload(payload: Any) -> List[Dict[str, Any]]:

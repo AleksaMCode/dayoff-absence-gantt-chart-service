@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
+from dayoff.exceptions import ScraperError, ScraperLookupError
 from dayoff.scraper_adapter import DayOffScraperAdapter
 from gantt.utils import generate_absence_gantt
 from logger.utils import get_logger
@@ -44,9 +45,16 @@ def get_absences_scraped(
                 "sharepoint_file_url": sharepoint_file_url,
             }
         )
-    except ValueError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    except Exception as error:
+    except ScraperLookupError as error:
+        logger.warning("Scraper lookup miss: %s", error)
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch absences: {error}"
+            status_code=404, detail="Requested data not found."
         ) from error
+    except ScraperError as error:
+        logger.exception("Day Off scraper failed: %s", error)
+        raise HTTPException(
+            status_code=502, detail="Failed to retrieve data from Day Off."
+        ) from error
+    except Exception as error:
+        logger.exception("Unexpected scraper route error: %s", error)
+        raise HTTPException(status_code=500, detail="Internal server error.") from error
