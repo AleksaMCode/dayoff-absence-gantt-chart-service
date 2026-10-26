@@ -41,6 +41,15 @@ class DayOffScraperAdapter:
         days_ahead: int = 5,
     ) -> Dict[str, Any]:
         start = start_date or date.today()
+        if days_ahead <= 0:
+            return {
+                "team_name": team_name,
+                "team_id": None,
+                "window_start": start.isoformat(),
+                "window_end": start.isoformat(),
+                "employees_count": 0,
+                "employees_absences": [],
+            }
         end = start + timedelta(days=days_ahead - 1)
         months_to_fetch = {(start.year, start.month), (end.year, end.month)}
 
