@@ -5,6 +5,7 @@ import unittest
 from datetime import date
 from unittest.mock import Mock, patch
 
+from dayoff.exceptions import ScraperError
 from dayoff.scraper_adapter import DayOffScraperAdapter
 
 
@@ -236,6 +237,7 @@ class TestDayOffScraperAdapter(unittest.TestCase):
 
         fake_sync_api_module = types.ModuleType("playwright.sync_api")
         fake_sync_api_module.sync_playwright = fake_sync_playwright
+        fake_sync_api_module.Error = RuntimeError
 
         fake_playwright_pkg = types.ModuleType("playwright")
         fake_playwright_pkg.sync_api = fake_sync_api_module
@@ -281,6 +283,47 @@ class TestDayOffScraperAdapter(unittest.TestCase):
             call.args[1]["Month"] for call in mock_fallback_fetch.call_args_list
         ]
         self.assertEqual(months_fetched, [10, 11])
+
+    def test_scrape_calendar_requests_wraps_playwright_error_as_scraper_error(
+        self,
+    ) -> None:
+        class FakePlaywrightError(Exception):
+            pass
+
+        class FakeChromium:
+            @staticmethod
+            def launch(headless=True, args=None):
+                raise FakePlaywrightError("Timeout exceeded")
+
+        class FakePlaywright:
+            chromium = FakeChromium()
+
+        class FakeSyncPlaywright:
+            def __enter__(self):
+                return FakePlaywright()
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                return False
+
+        fake_sync_api_module = types.ModuleType("playwright.sync_api")
+        fake_sync_api_module.sync_playwright = lambda: FakeSyncPlaywright()
+        fake_sync_api_module.Error = FakePlaywrightError
+
+        fake_playwright_pkg = types.ModuleType("playwright")
+        fake_playwright_pkg.sync_api = fake_sync_api_module
+
+        with patch.dict(
+            sys.modules,
+            {
+                "playwright": fake_playwright_pkg,
+                "playwright.sync_api": fake_sync_api_module,
+            },
+        ):
+            with self.assertRaises(ScraperError) as context:
+                self.adapter._scrape_calendar_requests([(2026, 10)])
+
+        self.assertIsNotNone(context.exception.__cause__)
+        self.assertIsInstance(context.exception.__cause__, FakePlaywrightError)
 
 
 if __name__ == "__main__":

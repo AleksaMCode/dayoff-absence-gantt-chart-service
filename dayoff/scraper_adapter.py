@@ -72,6 +72,7 @@ class DayOffScraperAdapter:
         self, months_to_fetch: List[tuple[int, int]]
     ) -> List[Dict[str, Any]]:
         try:
+            from playwright.sync_api import Error as PlaywrightError
             from playwright.sync_api import sync_playwright
         except ImportError as error:
             raise RuntimeError(
@@ -80,79 +81,99 @@ class DayOffScraperAdapter:
 
         captured_requests: List[Dict[str, Any]] = []
         observed_relevant_urls: Set[str] = set()
+        browser = None
 
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(
-                headless=self._headless,
-                args=["--no-sandbox", "--disable-dev-shm-usage"],
-            )
-            page = browser.new_page()
-            page.set_default_timeout(self._timeout_ms)
+        try:
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(
+                    headless=self._headless,
+                    args=["--no-sandbox", "--disable-dev-shm-usage"],
+                )
+                page = browser.new_page()
+                page.set_default_timeout(self._timeout_ms)
 
-            def on_response(response):
-                try:
-                    response_url = response.url
-                    if self._calendar_events_endpoint not in response_url and (
-                        "calendar" not in response_url and "events" not in response_url
-                    ):
+                def on_response(response):
+                    try:
+                        response_url = response.url
+                        if self._calendar_events_endpoint not in response_url and (
+                            "calendar" not in response_url
+                            and "events" not in response_url
+                        ):
+                            return
+                        observed_relevant_urls.add(response_url)
+                        payload = response.json()
+                    except Exception:
                         return
-                    observed_relevant_urls.add(response_url)
-                    payload = response.json()
-                except Exception:
-                    return
 
-                parsed_requests = self._extract_requests_from_payload(payload)
-                if parsed_requests:
-                    captured_requests.extend(parsed_requests)
+                    parsed_requests = self._extract_requests_from_payload(payload)
+                    if parsed_requests:
+                        captured_requests.extend(parsed_requests)
 
-            page.on("response", on_response)
-            self._login(page)
+                page.on("response", on_response)
+                self._login(page)
 
-            # Dashboard load usually triggers GetCalendarEvents requests.
-            dashboard_url = f"{self._calendar_url}?v={datetime.utcnow().timestamp()}"
-            page.goto(
-                dashboard_url, wait_until="domcontentloaded", timeout=self._timeout_ms
-            )
-            page.wait_for_timeout(2000)
-
-            for year, month in months_to_fetch:
-                # Keep a deterministic refresh cycle so SPA emits data requests.
-                cycle_url = (
-                    f"{self._calendar_url}?year={year}&month={month}"
-                    f"&v={datetime.utcnow().timestamp()}"
+                # Dashboard load usually triggers GetCalendarEvents requests.
+                dashboard_url = (
+                    f"{self._calendar_url}?v={datetime.utcnow().timestamp()}"
                 )
                 page.goto(
-                    cycle_url, wait_until="domcontentloaded", timeout=self._timeout_ms
+                    dashboard_url,
+                    wait_until="domcontentloaded",
+                    timeout=self._timeout_ms,
                 )
-                try:
-                    page.wait_for_response(
-                        lambda response: self._calendar_events_endpoint in response.url
-                        and response.status == 200,
+                page.wait_for_timeout(2000)
+
+                for year, month in months_to_fetch:
+                    # Keep a deterministic refresh cycle so SPA emits data requests.
+                    cycle_url = (
+                        f"{self._calendar_url}?year={year}&month={month}"
+                        f"&v={datetime.utcnow().timestamp()}"
+                    )
+                    page.goto(
+                        cycle_url,
+                        wait_until="domcontentloaded",
                         timeout=self._timeout_ms,
                     )
-                except Exception:
-                    # Fallback path below will try DOM extraction if API payloads are missing.
-                    pass
-                page.wait_for_timeout(1500)
-
-            if not captured_requests:
-                # Fallback: actively call calendar endpoint from authenticated page context.
-                for year, month in months_to_fetch:
-                    for request_payload in self._calendar_payload_candidates(
-                        year, month
-                    ):
-                        payload = self._fetch_calendar_events_payload(
-                            page, request_payload
+                    try:
+                        page.wait_for_response(
+                            lambda response: self._calendar_events_endpoint
+                            in response.url
+                            and response.status == 200,
+                            timeout=self._timeout_ms,
                         )
-                        parsed_requests = self._extract_requests_from_payload(payload)
-                        if parsed_requests:
-                            captured_requests.extend(parsed_requests)
-                            break
+                    except Exception:
+                        # Fallback path below will try DOM extraction if API payloads are missing.
+                        pass
+                    page.wait_for_timeout(1500)
 
-            if not captured_requests:
-                captured_requests = self._extract_from_calendar_dom(page)
+                if not captured_requests:
+                    # Fallback: actively call calendar endpoint from authenticated page context.
+                    for year, month in months_to_fetch:
+                        for request_payload in self._calendar_payload_candidates(
+                            year, month
+                        ):
+                            payload = self._fetch_calendar_events_payload(
+                                page, request_payload
+                            )
+                            parsed_requests = self._extract_requests_from_payload(
+                                payload
+                            )
+                            if parsed_requests:
+                                captured_requests.extend(parsed_requests)
+                                break
 
-            browser.close()
+                if not captured_requests:
+                    captured_requests = self._extract_from_calendar_dom(page)
+        except PlaywrightError as error:
+            raise ScraperError(
+                "Day Off scraping failed due to upstream page/login error."
+            ) from error
+        finally:
+            if browser is not None:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
 
         if not captured_requests:
             observed_suffix = ""
