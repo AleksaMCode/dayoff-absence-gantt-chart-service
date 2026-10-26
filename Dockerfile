@@ -12,10 +12,9 @@ RUN pip install --upgrade pip \
     && pip install -r /app/requirements.txt \
     && python -m playwright install --with-deps chromium
 
-COPY . /app
 # Development convenience: bake .env into the image for local runs.
 # Do NOT do this in production; inject environment at runtime via secrets/CI/CD.
-COPY .env /app/.env
+COPY . /app
 
 EXPOSE 8000
 
