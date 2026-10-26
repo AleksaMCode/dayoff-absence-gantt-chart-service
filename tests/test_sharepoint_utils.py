@@ -2,6 +2,7 @@ import os
 import unittest
 from unittest.mock import Mock, patch
 
+from microsoft.sharepoint.exceptions import SharePointUploadError
 from microsoft.sharepoint.utils import upload_image
 
 
@@ -104,10 +105,13 @@ class TestSharePointUtils(unittest.TestCase):
             },
             clear=False,
         ):
-            with self.assertRaisesRegex(
-                ValueError, "SharePoint environment variables are not fully configured"
-            ):
+            with self.assertRaises(SharePointUploadError) as context:
                 upload_image(b"fake-image-bytes", "chart.png")
+            self.assertIsNotNone(context.exception.__cause__)
+            self.assertIn(
+                "SharePoint environment variables are not fully configured",
+                str(context.exception.__cause__),
+            )
 
     def test_upload_image_missing_secret_in_secret_mode_raises(self) -> None:
         with patch.dict(
@@ -121,11 +125,13 @@ class TestSharePointUtils(unittest.TestCase):
             },
             clear=False,
         ):
-            with self.assertRaisesRegex(
-                ValueError,
-                "Client-secret SharePoint auth requires SHAREPOINT_CLIENT_SECRET",
-            ):
+            with self.assertRaises(SharePointUploadError) as context:
                 upload_image(b"fake-image-bytes", "chart.png")
+            self.assertIsNotNone(context.exception.__cause__)
+            self.assertIn(
+                "Client-secret SharePoint auth requires SHAREPOINT_CLIENT_SECRET",
+                str(context.exception.__cause__),
+            )
 
     def test_upload_image_missing_cert_fields_in_cert_mode_raises(self) -> None:
         with patch.dict(
@@ -141,10 +147,13 @@ class TestSharePointUtils(unittest.TestCase):
             },
             clear=False,
         ):
-            with self.assertRaisesRegex(
-                ValueError, "Certificate-based SharePoint auth requires"
-            ):
+            with self.assertRaises(SharePointUploadError) as context:
                 upload_image(b"fake-image-bytes", "chart.png")
+            self.assertIsNotNone(context.exception.__cause__)
+            self.assertIn(
+                "Certificate-based SharePoint auth requires",
+                str(context.exception.__cause__),
+            )
 
     @patch("microsoft.sharepoint.utils.ClientContext")
     @patch("microsoft.sharepoint.utils.ClientCredential")
@@ -170,10 +179,13 @@ class TestSharePointUtils(unittest.TestCase):
                 mock_uploaded_file
             )
 
-            with self.assertRaisesRegex(
-                ValueError, "Unable to resolve uploaded SharePoint file URL."
-            ):
+            with self.assertRaises(SharePointUploadError) as context:
                 upload_image(b"fake-image-bytes", "chart.png")
+            self.assertIsNotNone(context.exception.__cause__)
+            self.assertIn(
+                "Unable to resolve uploaded SharePoint file URL.",
+                str(context.exception.__cause__),
+            )
 
 
 if __name__ == "__main__":
