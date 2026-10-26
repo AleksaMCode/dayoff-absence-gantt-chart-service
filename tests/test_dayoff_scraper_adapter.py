@@ -72,6 +72,24 @@ class TestDayOffScraperAdapter(unittest.TestCase):
         self.assertEqual(extracted[0]["Name"], "John Wick")
 
     @patch.object(DayOffScraperAdapter, "_scrape_calendar_requests")
+    def test_get_absences_for_users_window_days_ahead_zero_returns_empty_without_scrape(
+        self, mock_scrape_calendar_requests: Mock
+    ) -> None:
+        result = self.adapter.get_absences_for_users_window(
+            full_names=["John Wick"],
+            team_name="Sprint Team",
+            start_date=date(2026, 10, 13),
+            days_ahead=0,
+        )
+
+        mock_scrape_calendar_requests.assert_not_called()
+        self.assertEqual(result["team_name"], "Sprint Team")
+        self.assertEqual(result["window_start"], "2026-10-13")
+        self.assertEqual(result["window_end"], "2026-10-13")
+        self.assertEqual(result["employees_count"], 0)
+        self.assertEqual(result["employees_absences"], [])
+
+    @patch.object(DayOffScraperAdapter, "_scrape_calendar_requests")
     def test_get_absences_for_users_window_aggregates_days(
         self, mock_scrape_calendar_requests: Mock
     ) -> None:
