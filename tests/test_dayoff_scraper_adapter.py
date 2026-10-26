@@ -214,13 +214,13 @@ class TestDayOffScraperAdapter(unittest.TestCase):
                 side_effect=fallback_payload_for_month,
             ) as mock_fallback_fetch,
         ):
-            requests = self.adapter._scrape_calendar_requests(
-                [(2026, 10), (2026, 11)]
-            )
+            requests = self.adapter._scrape_calendar_requests([(2026, 10), (2026, 11)])
 
         self.assertEqual(len(requests), 2)
         self.assertEqual(mock_fallback_fetch.call_count, 2)
-        months_fetched = [call.args[1]["Month"] for call in mock_fallback_fetch.call_args_list]
+        months_fetched = [
+            call.args[1]["Month"] for call in mock_fallback_fetch.call_args_list
+        ]
         self.assertEqual(months_fetched, [10, 11])
 
 
