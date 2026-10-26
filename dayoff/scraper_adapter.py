@@ -82,6 +82,8 @@ class DayOffScraperAdapter:
         captured_requests: List[Dict[str, Any]] = []
         observed_relevant_urls: Set[str] = set()
         retrieval_succeeded = False
+        calendar_shape_hits = 0
+        month_retrieval_status = {month_key: False for month_key in months_to_fetch}
         browser = None
 
         try:
@@ -94,7 +96,7 @@ class DayOffScraperAdapter:
                 page.set_default_timeout(self._timeout_ms)
 
                 def on_response(response):
-                    nonlocal retrieval_succeeded
+                    nonlocal retrieval_succeeded, calendar_shape_hits
                     try:
                         response_url = response.url
                         if self._calendar_events_endpoint not in response_url and (
@@ -110,6 +112,7 @@ class DayOffScraperAdapter:
                     parsed_requests = self._extract_requests_from_payload(payload)
                     if self._payload_contains_calendar_shape(payload):
                         retrieval_succeeded = True
+                        calendar_shape_hits += 1
                     if parsed_requests:
                         captured_requests.extend(parsed_requests)
 
@@ -130,6 +133,7 @@ class DayOffScraperAdapter:
                 months_without_usable_data: List[tuple[int, int]] = []
                 for year, month in months_to_fetch:
                     requests_count_before_month = len(captured_requests)
+                    shape_hits_before_month = calendar_shape_hits
                     # Keep a deterministic refresh cycle so SPA emits data requests.
                     cycle_url = (
                         f"{self._calendar_url}?year={year}&month={month}"
@@ -152,12 +156,19 @@ class DayOffScraperAdapter:
                         pass
                     page.wait_for_timeout(1500)
                     requests_count_after_month = len(captured_requests)
-                    if requests_count_after_month == requests_count_before_month:
+                    shape_hits_after_month = calendar_shape_hits
+                    if (
+                        requests_count_after_month > requests_count_before_month
+                        or shape_hits_after_month > shape_hits_before_month
+                    ):
+                        month_retrieval_status[(year, month)] = True
+                    else:
                         months_without_usable_data.append((year, month))
 
                 if months_without_usable_data:
                     # Fallback: actively call calendar endpoint from authenticated page context.
                     for year, month in months_without_usable_data:
+                        month_retrieved_via_fallback = False
                         for request_payload in self._calendar_payload_candidates(
                             year, month
                         ):
@@ -166,12 +177,16 @@ class DayOffScraperAdapter:
                             )
                             if self._payload_contains_calendar_shape(payload):
                                 retrieval_succeeded = True
+                                month_retrieved_via_fallback = True
                             parsed_requests = self._extract_requests_from_payload(
                                 payload
                             )
                             if parsed_requests:
                                 captured_requests.extend(parsed_requests)
+                                month_retrieved_via_fallback = True
                                 break
+                        if month_retrieved_via_fallback:
+                            month_retrieval_status[(year, month)] = True
 
                 if not captured_requests:
                     dom_records = self._extract_from_calendar_dom(page)
@@ -188,6 +203,24 @@ class DayOffScraperAdapter:
                     browser.close()
                 except Exception:
                     pass
+
+        unretrieved_months = [
+            month_key
+            for month_key, is_retrieved in month_retrieval_status.items()
+            if not is_retrieved
+        ]
+        if unretrieved_months:
+            month_labels = ", ".join(
+                [f"{year}-{month:02d}" for year, month in unretrieved_months]
+            )
+            observed_suffix = ""
+            if observed_relevant_urls:
+                preview = sorted(observed_relevant_urls)[:8]
+                observed_suffix = f" Observed relevant response URLs: {preview}."
+            raise ScraperError(
+                f"Failed to retrieve calendar data for month(s): {month_labels}."
+                + observed_suffix
+            )
 
         if not captured_requests and not retrieval_succeeded:
             observed_suffix = ""

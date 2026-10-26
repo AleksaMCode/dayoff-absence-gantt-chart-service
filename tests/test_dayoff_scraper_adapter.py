@@ -512,6 +512,118 @@ class TestDayOffScraperAdapter(unittest.TestCase):
 
         self.assertEqual(requests, [])
 
+    def test_scrape_calendar_requests_raises_when_one_month_is_not_retrieved(
+        self,
+    ) -> None:
+        class FakeResponse:
+            def __init__(self, url: str, payload: dict):
+                self.url = url
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        class FakePage:
+            def __init__(self):
+                self._on_response = None
+                self._goto_calls = 0
+
+            def set_default_timeout(self, _timeout):
+                return None
+
+            def on(self, event, handler):
+                if event == "response":
+                    self._on_response = handler
+
+            def goto(self, _url, wait_until=None, timeout=None):
+                self._goto_calls += 1
+                # 1st goto = dashboard, 2nd = October month cycle, 3rd = November month cycle
+                if self._goto_calls == 2 and self._on_response is not None:
+                    self._on_response(
+                        FakeResponse(
+                            "https://tracker.day-off.app/Dayoff/api/Companies/GetCalendarEvents",
+                            {
+                                "AcceptedRequests": [
+                                    {
+                                        "Name": "User-10",
+                                        "FromDateFormated": "2026-10-30",
+                                        "ToDateFormated": "2026-10-31",
+                                    }
+                                ]
+                            },
+                        )
+                    )
+                return None
+
+            def wait_for_timeout(self, _ms):
+                return None
+
+            def wait_for_response(self, _predicate, timeout=None):
+                return None
+
+            def evaluate(self, _script):
+                return []
+
+        class FakeBrowser:
+            def __init__(self, page):
+                self._page = page
+
+            def new_page(self):
+                return self._page
+
+            def close(self):
+                return None
+
+        class FakePlaywright:
+            def __init__(self, page):
+                self.chromium = self
+                self._page = page
+
+            def launch(self, headless=True, args=None):
+                return FakeBrowser(self._page)
+
+        class FakeSyncPlaywright:
+            def __init__(self, page):
+                self._page = page
+
+            def __enter__(self):
+                return FakePlaywright(self._page)
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                return False
+
+        fake_page = FakePage()
+        fake_sync_api_module = types.ModuleType("playwright.sync_api")
+        fake_sync_api_module.sync_playwright = lambda: FakeSyncPlaywright(fake_page)
+        fake_sync_api_module.Error = RuntimeError
+        fake_playwright_pkg = types.ModuleType("playwright")
+        fake_playwright_pkg.sync_api = fake_sync_api_module
+
+        with (
+            patch.dict(
+                sys.modules,
+                {
+                    "playwright": fake_playwright_pkg,
+                    "playwright.sync_api": fake_sync_api_module,
+                },
+            ),
+            patch.object(self.adapter, "_login"),
+            patch.object(
+                self.adapter,
+                "_calendar_payload_candidates",
+                side_effect=lambda year, month: [{"Year": year, "Month": month}],
+            ),
+            patch.object(
+                self.adapter,
+                "_fetch_calendar_events_payload",
+                return_value={},
+            ),
+        ):
+            with self.assertRaises(ScraperError) as context:
+                self.adapter._scrape_calendar_requests([(2026, 10), (2026, 11)])
+
+        self.assertIn("2026-11", str(context.exception))
+
     def test_scrape_calendar_requests_wraps_playwright_error_as_scraper_error(
         self,
     ) -> None:
