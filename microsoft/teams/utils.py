@@ -7,13 +7,14 @@ from dotenv import load_dotenv
 
 from i18n.loader import i18n
 from logger.utils import get_logger
+from microsoft.teams.exceptions import TeamsPublishError
 
 load_dotenv()
 logger = get_logger(__name__)
 
 
+# NOTE: Simply use Workflow with "Send webhook alerts to a channel" (this will generate "webhook" URL).
 # Incoming Webhook is to be retired in Teams - https://techcommunity.microsoft.com/discussions/teamsdeveloper/simple-workflow-to-replace-teams-incoming-webhooks/4225270
-# TODO: We'll cross that bridge once needed.
 # Probably need to switch eventually to:
 #   - https://learn.microsoft.com/en-us/microsoftteams/platform/bots/how-to/bots-filesv4?tabs=csharp1%2Ccsharp
 #   - https://learn.microsoft.com/en-us/graph/api/chatmessage-post?view=graph-rest-beta&preserve-view=true&tabs=python#example-4-file-attachments
@@ -23,17 +24,22 @@ def send_webhook_message(message: str, image_url: Optional[str] = None):
     """
     payload = _build_webhook_payload(message=message, image_url=image_url)
 
-    response = requests.post(
-        os.getenv("TEAMS_WEBHOOK_URL"),
-        data=json.dumps(payload),
-        headers={"Content-Type": "application/json"},
-        timeout=10,
-    )
+    try:
+        response = requests.post(
+            os.getenv("TEAMS_WEBHOOK_URL"),
+            data=json.dumps(payload),
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+    except requests.RequestException as error:
+        error_msg = f"Request to Teams failed with network error: {error}"
+        logger.error(error_msg)
+        raise TeamsPublishError(error_msg) from error
 
-    if response.status_code != 200:
+    if not (200 <= response.status_code < 300):
         error_msg = f"Request to Teams returned an error {response.status_code}, the response is:\n{response.text}"
         logger.error(error_msg)
-        raise ValueError(error_msg)
+        raise TeamsPublishError(error_msg)
     else:
         logger.info("Slack webhook message sent to Teams.")
 
@@ -70,7 +76,15 @@ def _build_webhook_payload(
                             "weight": "Bolder",
                             "wrap": True,
                         },
-                        {"type": "Image", "url": image_url, "size": "Stretch"},
+                        {
+                            "type": "Image",
+                            "url": image_url,
+                            "size": "Stretch",
+                            "selectAction": {
+                                "type": "Action.OpenUrl",
+                                "url": image_url,
+                            },
+                        },
                     ],
                     "actions": [
                         {

@@ -29,3 +29,26 @@ class GetAbsencesRequest(BaseModel):
         if self.email_usernames and self.team_id is not None:
             raise ValueError("team_id cannot be used with email_usernames.")
         return self
+
+
+class GetScrapedAbsencesRequest(BaseModel):
+    full_names: List[str] = Field(
+        ...,
+        min_length=1,
+        description="List of exact employee names to match (Firstname Lastname).",
+    )
+    team_name: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        description="Optional team label used in chart title and response.",
+    )
+    days_ahead: int = Field(
+        default=5, ge=0, le=30, description="Window size from today."
+    )
+
+    @model_validator(mode="after")
+    def validate_full_names(self):
+        for name in self.full_names:
+            if not name or not name.strip():
+                raise ValueError("full_names must contain non-empty values.")
+        return self

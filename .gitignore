@@ -2,6 +2,7 @@
 *.log*
 
 DayOff.json
+capture_dayoff_dashboard.py
 
 # Certificates and keys
 *.pem
