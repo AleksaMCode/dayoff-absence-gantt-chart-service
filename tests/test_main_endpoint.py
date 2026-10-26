@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 from dayoff.exceptions import ScraperError
+from microsoft.sharepoint.exceptions import SharePointUploadError
 from microsoft.teams.exceptions import TeamsPublishError
 
 os.environ["LANG"] = "en"
@@ -140,6 +141,40 @@ class TestMainApiModeEndpoint(unittest.TestCase):
             response.json()["detail"], "Failed to publish Teams notification."
         )
 
+    @patch("routers.api_absences.upload_image")
+    @patch("routers.api_absences.generate_absence_gantt")
+    @patch("routers.api_absences.api_adapter.get_absences_for_window")
+    def test_get_absences_returns_502_on_sharepoint_upload_error(
+        self,
+        mock_get_absences_for_window: Mock,
+        mock_generate_absence_gantt: Mock,
+        mock_upload_image: Mock,
+    ) -> None:
+        mock_get_absences_for_window.return_value = {
+            "team_name": "Team 1",
+            "team_id": 12954,
+            "window_start": "2026-04-21",
+            "window_end": "2026-04-25",
+            "employees_count": 1,
+            "employees_absences": [
+                {"employee_id": 1, "name": "John Wick", "absence_dates": ["2026-04-22"]}
+            ],
+        }
+        mock_generate_absence_gantt.return_value = {
+            "chart_file_name": "chart.png",
+            "chart_bytes": b"png-bytes",
+        }
+        mock_upload_image.side_effect = SharePointUploadError("upload failed")
+
+        response = self.client.post(
+            "/get_absences", json={"team_name": "Team 1", "days_ahead": 5}
+        )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(
+            response.json()["detail"], "Failed to upload chart to SharePoint."
+        )
+
 
 class TestMainScraperModeEndpoint(unittest.TestCase):
     def setUp(self) -> None:
@@ -260,6 +295,49 @@ class TestMainScraperModeEndpoint(unittest.TestCase):
         self.assertEqual(response.status_code, 502)
         self.assertEqual(
             response.json()["detail"], "Failed to publish Teams notification."
+        )
+
+    @patch("routers.scraper_absences.upload_image")
+    @patch("routers.scraper_absences.generate_absence_gantt")
+    @patch("routers.scraper_absences.scraper_adapter.get_absences_for_users_window")
+    def test_get_absences_scraped_returns_502_on_sharepoint_upload_error(
+        self,
+        mock_scraped_absences: Mock,
+        mock_generate_absence_gantt: Mock,
+        mock_upload_image: Mock,
+    ) -> None:
+        mock_scraped_absences.return_value = {
+            "team_name": "Sprint Team",
+            "team_id": None,
+            "window_start": "2026-04-21",
+            "window_end": "2026-04-25",
+            "employees_count": 1,
+            "employees_absences": [
+                {
+                    "employee_id": 10,
+                    "name": "John Wick",
+                    "absence_dates": ["2026-04-22"],
+                }
+            ],
+        }
+        mock_generate_absence_gantt.return_value = {
+            "chart_file_name": "chart.png",
+            "chart_bytes": b"png-bytes",
+        }
+        mock_upload_image.side_effect = SharePointUploadError("upload failed")
+
+        response = self.client.post(
+            "/get_absences_scraped",
+            json={
+                "full_names": ["John Wick"],
+                "team_name": "Sprint Team",
+                "days_ahead": 5,
+            },
+        )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(
+            response.json()["detail"], "Failed to upload chart to SharePoint."
         )
 
     @patch("routers.scraper_absences.scraper_adapter.get_absences_for_users_window")

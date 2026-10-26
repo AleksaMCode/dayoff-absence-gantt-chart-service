@@ -4,6 +4,7 @@ from dayoff.exceptions import ScraperError, ScraperLookupError
 from dayoff.scraper_adapter import DayOffScraperAdapter
 from gantt.utils import generate_absence_gantt
 from logger.utils import get_logger
+from microsoft.sharepoint.exceptions import SharePointUploadError
 from microsoft.sharepoint.utils import upload_image
 from microsoft.teams.exceptions import TeamsPublishError
 from microsoft.teams.utils import publish_to_channel
@@ -60,6 +61,11 @@ def get_absences_scraped(
         logger.exception("Teams publish failed: %s", error)
         raise HTTPException(
             status_code=502, detail="Failed to publish Teams notification."
+        ) from error
+    except SharePointUploadError as error:
+        logger.exception("SharePoint upload failed: %s", error)
+        raise HTTPException(
+            status_code=502, detail="Failed to upload chart to SharePoint."
         ) from error
     except Exception as error:
         logger.exception("Unexpected scraper route error: %s", error)

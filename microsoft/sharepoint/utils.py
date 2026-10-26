@@ -7,6 +7,7 @@ from office365.runtime.auth.client_credential import ClientCredential
 from office365.sharepoint.client_context import ClientContext
 
 from logger.utils import get_logger
+from microsoft.sharepoint.exceptions import SharePointUploadError
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -72,6 +73,6 @@ def upload_image(image_content: bytes, file_name: str) -> str:
         )
         logger.info(f"File '{file_name}' uploaded successfully to: {absolute_url}")
         return absolute_url
-    except Exception as e:
-        logger.error(f"Error uploading file: {e}")
-        raise
+    except Exception as error:
+        logger.exception("Error uploading file to SharePoint: %s", error)
+        raise SharePointUploadError("Failed to upload image to SharePoint.") from error
