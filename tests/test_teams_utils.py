@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 os.environ["LANG"] = "en"
 
+from microsoft.teams.exceptions import TeamsPublishError
 from microsoft.teams.utils import publish_to_channel, send_webhook_message
 
 
@@ -48,6 +49,28 @@ class TestTeamsUtils(unittest.TestCase):
         mock_post.assert_called_once_with(
             "https://example.test/webhook",
             data=json.dumps({"text": "Accepted by workflow"}),
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+        mock_logger_info.assert_called_once_with("Slack webhook message sent to Teams.")
+
+    @patch("microsoft.teams.utils.logger.info")
+    @patch("microsoft.teams.utils.requests.post")
+    @patch("microsoft.teams.utils.os.getenv")
+    def test_send_webhook_message_accepts_204(
+        self,
+        mock_getenv: Mock,
+        mock_post: Mock,
+        mock_logger_info: Mock,
+    ) -> None:
+        mock_getenv.return_value = "https://example.test/webhook"
+        mock_post.return_value = Mock(status_code=204, text="")
+
+        send_webhook_message("Accepted with no content")
+
+        mock_post.assert_called_once_with(
+            "https://example.test/webhook",
+            data=json.dumps({"text": "Accepted with no content"}),
             headers={"Content-Type": "application/json"},
             timeout=10,
         )
@@ -124,7 +147,7 @@ class TestTeamsUtils(unittest.TestCase):
         mock_getenv.return_value = "https://example.test/webhook"
         mock_post.return_value = Mock(status_code=500, text="test")
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(TeamsPublishError) as context:
             send_webhook_message("Failure path")
         self.assertIn("Request to Teams returned an error 500", str(context.exception))
         mock_logger_error.assert_called_once()

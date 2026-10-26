@@ -4,6 +4,7 @@ from dayoff.adapter import DayOffAdapter
 from gantt.utils import generate_absence_gantt
 from logger.utils import get_logger
 from microsoft.sharepoint.utils import upload_image
+from microsoft.teams.exceptions import TeamsPublishError
 from microsoft.teams.utils import publish_to_channel
 from models.requests import GetAbsencesRequest
 from models.responses import AbsenceWindowResponse, AbsenceWindowWithChartResponse
@@ -51,6 +52,11 @@ def get_absences(
                 "sharepoint_file_url": sharepoint_file_url,
             }
         )
+    except TeamsPublishError as error:
+        logger.exception("Teams publish failed: %s", error)
+        raise HTTPException(
+            status_code=502, detail="Failed to publish Teams notification."
+        ) from error
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except Exception as error:

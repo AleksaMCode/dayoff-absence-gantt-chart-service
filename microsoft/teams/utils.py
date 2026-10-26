@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 from i18n.loader import i18n
 from logger.utils import get_logger
+from microsoft.teams.exceptions import TeamsPublishError
 
 load_dotenv()
 logger = get_logger(__name__)
@@ -23,17 +24,22 @@ def send_webhook_message(message: str, image_url: Optional[str] = None):
     """
     payload = _build_webhook_payload(message=message, image_url=image_url)
 
-    response = requests.post(
-        os.getenv("TEAMS_WEBHOOK_URL"),
-        data=json.dumps(payload),
-        headers={"Content-Type": "application/json"},
-        timeout=10,
-    )
+    try:
+        response = requests.post(
+            os.getenv("TEAMS_WEBHOOK_URL"),
+            data=json.dumps(payload),
+            headers={"Content-Type": "application/json"},
+            timeout=10,
+        )
+    except requests.RequestException as error:
+        error_msg = f"Request to Teams failed with network error: {error}"
+        logger.error(error_msg)
+        raise TeamsPublishError(error_msg) from error
 
-    if response.status_code not in (200, 202):
+    if not (200 <= response.status_code < 300):
         error_msg = f"Request to Teams returned an error {response.status_code}, the response is:\n{response.text}"
         logger.error(error_msg)
-        raise ValueError(error_msg)
+        raise TeamsPublishError(error_msg)
     else:
         logger.info("Slack webhook message sent to Teams.")
 

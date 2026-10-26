@@ -5,6 +5,7 @@ from dayoff.scraper_adapter import DayOffScraperAdapter
 from gantt.utils import generate_absence_gantt
 from logger.utils import get_logger
 from microsoft.sharepoint.utils import upload_image
+from microsoft.teams.exceptions import TeamsPublishError
 from microsoft.teams.utils import publish_to_channel
 from models.requests import GetScrapedAbsencesRequest
 from models.responses import AbsenceWindowResponse, AbsenceWindowWithChartResponse
@@ -54,6 +55,11 @@ def get_absences_scraped(
         logger.exception("Day Off scraper failed: %s", error)
         raise HTTPException(
             status_code=502, detail="Failed to retrieve data from Day Off."
+        ) from error
+    except TeamsPublishError as error:
+        logger.exception("Teams publish failed: %s", error)
+        raise HTTPException(
+            status_code=502, detail="Failed to publish Teams notification."
         ) from error
     except Exception as error:
         logger.exception("Unexpected scraper route error: %s", error)
