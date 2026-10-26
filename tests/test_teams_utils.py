@@ -93,7 +93,6 @@ class TestTeamsUtils(unittest.TestCase):
                                     "url": "https://contoso.sharepoint.com/file.png",
                                 },
                             },
-                            {"type": "TextBlock", "wrap": True},
                         ],
                         "actions": [
                             {

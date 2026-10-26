@@ -79,10 +79,6 @@ def _build_webhook_payload(
                                 "url": image_url,
                             },
                         },
-                        {
-                            "type": "TextBlock",
-                            "wrap": True,
-                        },
                     ],
                     "actions": [
                         {
