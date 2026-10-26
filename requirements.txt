@@ -5,5 +5,5 @@ fastapi==0.136.0
 uvicorn==0.44.0
 matplotlib==3.10.8
 pydantic==2.13.2
-office365-rest-python-client
+office365-rest-python-client==2.6.2
 playwright==1.63.0
