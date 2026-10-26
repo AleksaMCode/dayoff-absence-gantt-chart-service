@@ -123,7 +123,9 @@ class DayOffScraperAdapter:
                 )
                 page.wait_for_timeout(2000)
 
+                months_without_usable_data: List[tuple[int, int]] = []
                 for year, month in months_to_fetch:
+                    requests_count_before_month = len(captured_requests)
                     # Keep a deterministic refresh cycle so SPA emits data requests.
                     cycle_url = (
                         f"{self._calendar_url}?year={year}&month={month}"
@@ -145,10 +147,13 @@ class DayOffScraperAdapter:
                         # Fallback path below will try DOM extraction if API payloads are missing.
                         pass
                     page.wait_for_timeout(1500)
+                    requests_count_after_month = len(captured_requests)
+                    if requests_count_after_month == requests_count_before_month:
+                        months_without_usable_data.append((year, month))
 
-                if not captured_requests:
+                if months_without_usable_data:
                     # Fallback: actively call calendar endpoint from authenticated page context.
-                    for year, month in months_to_fetch:
+                    for year, month in months_without_usable_data:
                         for request_payload in self._calendar_payload_candidates(
                             year, month
                         ):
